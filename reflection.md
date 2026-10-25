@@ -7,6 +7,10 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+A user can enter basic information about themselves and their pet.
+A user can add or edit pet care tasks, including each task’s duration and priority.
+A user can generate and view a daily care plan based on their available time and task priorities.
+
 **b. Design changes**
 
 - Did your design change during implementation?
