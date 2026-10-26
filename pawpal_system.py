@@ -1,10 +1,12 @@
 """PawPal+ core classes: Owner, Pet, Task, and Scheduler."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 VALID_PRIORITIES = (1, 2, 3)
 PRIORITY_LABELS = {1: "high", 2: "medium", 3: "low"}
+RECURRENCE_DAYS = {"daily": 1, "weekly": 7}  # other frequencies do not repeat
 
 
 def _check_duration(duration: int) -> None:
@@ -25,13 +27,25 @@ def _check_minutes(minutes: int) -> None:
         raise ValueError(f"Available minutes cannot be negative, got {minutes}.")
 
 
+def _normalize_time(time_text: str) -> str:
+    """Return a valid time as zero-padded HH:MM, or raise an error if it is invalid."""
+    try:
+        parsed = datetime.strptime(time_text.strip(), "%H:%M")
+    except ValueError:
+        raise ValueError(
+            f"Time must be in HH:MM format (00:00 to 23:59), got '{time_text}'."
+        ) from None
+    return parsed.strftime("%H:%M")
+
+
 @dataclass
 class Task:
     """A single care task for one pet.
 
     Priority: 1 = high, 2 = medium, 3 = low.
     Tasks with equal priority keep their original order when scheduled.
-    Frequency (for example "daily" or "weekly") is stored as information only.
+    Daily and weekly tasks repeat when completed through Scheduler.complete_task().
+    Duration is how long the task takes; scheduled_time is when it starts.
     """
 
     description: str
@@ -40,11 +54,15 @@ class Task:
     pet_name: str
     frequency: str = "daily"
     completed: bool = False
+    scheduled_time: Optional[str] = None  # start time as "HH:MM", or None if not set
+    due_date: date = field(default_factory=date.today)
 
     def __post_init__(self) -> None:
         """Check the starting values when a task is created."""
         _check_duration(self.duration)
         _check_priority(self.priority)
+        if self.scheduled_time is not None:
+            self.scheduled_time = _normalize_time(self.scheduled_time)
 
     def update_details(
         self,
@@ -52,12 +70,15 @@ class Task:
         duration: Optional[int] = None,
         priority: Optional[int] = None,
         frequency: Optional[str] = None,
+        scheduled_time: Optional[str] = None,
     ) -> None:
         """Update any of the task's details. Details left as None are not changed."""
         if duration is not None:
             _check_duration(duration)
         if priority is not None:
             _check_priority(priority)
+        if scheduled_time is not None:
+            scheduled_time = _normalize_time(scheduled_time)
 
         if description is not None:
             self.description = description
@@ -67,6 +88,8 @@ class Task:
             self.priority = priority
         if frequency is not None:
             self.frequency = frequency
+        if scheduled_time is not None:
+            self.scheduled_time = scheduled_time
 
     def mark_complete(self) -> None:
         """Mark this task as done."""
@@ -134,7 +157,7 @@ class Scheduler:
     available_minutes: int = 0
 
     def generate_plan(self, owner: Owner) -> List[Task]:
-        """Select incomplete tasks by priority that fit the owner's time and return them."""
+        """Select incomplete tasks due by today, by priority, that fit the owner's time."""
         # Start fresh so running the plan twice does not repeat tasks.
         self.selected_tasks = []
         self.skipped_tasks = []
@@ -148,6 +171,9 @@ class Scheduler:
             if task.completed:
                 self.skipped_tasks.append((task, "already completed"))
                 continue
+            if task.due_date > date.today():
+                self.skipped_tasks.append((task, f"not due until {task.due_date}"))
+                continue
 
             minutes_left = self.available_minutes - self.total_duration
             if task.duration <= minutes_left:
@@ -158,6 +184,73 @@ class Scheduler:
                 self.skipped_tasks.append((task, reason))
 
         return self.selected_tasks
+
+    def sort_by_time(self, tasks: List[Task]) -> List[Task]:
+        """Return a new list sorted by scheduled time, with untimed tasks last."""
+        # False sorts before True, so tasks with a time come first.
+        return sorted(tasks, key=lambda task: (task.scheduled_time is None, task.scheduled_time or ""))
+
+    def filter_tasks(
+        self, owner: Owner, pet_name: Optional[str] = None, completed: Optional[bool] = None
+    ) -> List[Task]:
+        """Return the owner's tasks matching a pet name and/or completion status (None means any)."""
+        tasks = owner.get_all_tasks()
+        if pet_name is not None:
+            tasks = [task for task in tasks if task.pet_name == pet_name]
+        if completed is not None:
+            tasks = [task for task in tasks if task.completed == completed]
+        return tasks
+
+    def complete_task(self, owner: Owner, task: Task) -> Optional[Task]:
+        """Mark a task complete and add its next daily/weekly occurrence; return it or None."""
+        # Use "is" so only this exact task object counts, not an equal-looking copy.
+        task_pet = None
+        for pet in owner.pets:
+            if any(existing is task for existing in pet.tasks):
+                task_pet = pet
+                break
+        if task_pet is None:
+            raise ValueError(f"Task '{task.description}' does not belong to any of {owner.name}'s pets.")
+
+        # Completing a task twice must not create a second occurrence.
+        if task.completed:
+            return None
+        task.mark_complete()
+
+        days = RECURRENCE_DAYS.get(task.frequency.strip().lower())
+        if days is None:
+            return None
+
+        # Count from the task's own due date if it is later than today.
+        start_date = max(date.today(), task.due_date)
+        next_task = replace(task, due_date=start_date + timedelta(days=days), completed=False)
+
+        for existing in task_pet.tasks:
+            if (
+                existing.description == next_task.description
+                and existing.due_date == next_task.due_date
+                and existing.scheduled_time == next_task.scheduled_time
+            ):
+                return None
+
+        task_pet.add_task(next_task)
+        return next_task
+
+    def find_conflicts(self, owner: Owner) -> List[str]:
+        """Return a warning for each date and start time shared by two or more unfinished tasks."""
+        groups: Dict[Tuple[date, str], List[Task]] = {}
+        for task in owner.get_all_tasks():
+            if task.completed or task.scheduled_time is None:
+                continue
+            key = (task.due_date, task.scheduled_time)
+            groups.setdefault(key, []).append(task)
+
+        warnings = []
+        for (due_date, start_time), tasks in sorted(groups.items()):
+            if len(tasks) >= 2:
+                names = ", ".join(f"{task.description} ({task.pet_name})" for task in tasks)
+                warnings.append(f"Conflict on {due_date} at {start_time}: {names}")
+        return warnings
 
     def explain_choices(self) -> str:
         """Explain which tasks were selected and why the others were skipped."""

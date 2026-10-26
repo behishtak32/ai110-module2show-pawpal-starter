@@ -36,7 +36,9 @@ I renamed CareTask to Task and DailyPlan to Scheduler to match the implementatio
 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
+My scheduler detects conflicts only when unfinished tasks have the same date and start time. This keeps the algorithm simple, but it misses overlapping tasks with different start times, such as a 30-minute walk at 08:00 and feeding at 08:15.
 
+AI suggested using defaultdict instead of setdefault for readability. I kept the existing dictionary approach because it works correctly and the change would not meaningfully improve performance. I kept warnings sorted by date and time so they are easier to read.
 ---
 
 ## 3. AI Collaboration
