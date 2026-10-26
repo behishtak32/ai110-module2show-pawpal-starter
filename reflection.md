@@ -7,15 +7,20 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
-A user can enter basic information about themselves and their pet.
-A user can add or edit pet care tasks, including each task’s duration and priority.
-A user can generate and view a daily care plan based on their available time and task priorities.
+I chose four classes:
+
+- Owner stores the owner's name, available time, and pets. It handles adding pets and updating available time.
+- Pet stores the pet's name, species, and care tasks. It handles adding and editing tasks.
+- CareTask stores a task's name, duration, and priority. It handles updating task details.
+- DailyPlan selects tasks from the owner's pets based on available time and priorities. It stores the selected tasks and total duration and explains its choices.
 
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+After reviewing AI feedback, I added pet_name to CareTask so the daily plan can identify which pet each task belongs to. I added skipped_tasks with reasons and available_minutes to DailyPlan so it can explain skipped tasks and report time usage.
 
+I defined priorities as 1 = high, 2 = medium, and 3 = low, with equal priorities keeping their original order. I also updated the UML to show that DailyPlan uses Owner rather than being stored by Owner. All methods remain empty stubs.
 ---
 
 ## 2. Scheduling Logic and Tradeoffs

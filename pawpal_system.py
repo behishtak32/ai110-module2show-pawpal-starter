@@ -1,14 +1,21 @@
 """PawPal+ core classes: Owner, Pet, CareTask, and DailyPlan."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 
 @dataclass
 class CareTask:
+    """A single care task for one pet.
+
+    Priority: 1 = highest, 2 = medium, 3 = lowest.
+    Tasks with equal priority keep their original order.
+    """
+
     name: str
     duration: int  # minutes
-    priority: int
+    priority: int  # 1 (highest) to 3 (lowest)
+    pet_name: str
 
     def update_details(self, name: str, duration: int, priority: int) -> None:
         """Update this task's name, duration, and priority."""
@@ -48,7 +55,9 @@ class Owner:
 @dataclass
 class DailyPlan:
     selected_tasks: List[CareTask] = field(default_factory=list)
+    skipped_tasks: List[Tuple[CareTask, str]] = field(default_factory=list)  # (task, reason)
     total_duration: int = 0
+    available_minutes: int = 0
 
     def generate_plan(self, owner: Owner) -> None:
         """Pick tasks from the owner's pets by priority to fit their available time."""

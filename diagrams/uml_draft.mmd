@@ -19,17 +19,22 @@ classDiagram
         +String name
         +int duration
         +int priority
+        +String pet_name
         +update_details(name, duration, priority)
     }
 
     class DailyPlan {
         +List~CareTask~ selected_tasks
+        +List~Tuple~ skipped_tasks
         +int total_duration
+        +int available_minutes
         +generate_plan(owner)
         +explain_choices()
     }
 
     Owner "1" --> "0..*" Pet : has
     Pet "1" --> "0..*" CareTask : has
-    Owner "1" --> "1" DailyPlan : has
+    DailyPlan ..> Owner : uses
     DailyPlan "1" --> "0..*" CareTask : selects
+    note for DailyPlan "skipped_tasks holds (CareTask, reason) tuples"
+    note for CareTask "priority: 1 = highest, 2 = medium, 3 = lowest; ties keep original order"
