@@ -21,6 +21,8 @@ I chose four classes:
 After reviewing AI feedback, I added pet_name to CareTask so the daily plan can identify which pet each task belongs to. I added skipped_tasks with reasons and available_minutes to DailyPlan so it can explain skipped tasks and report time usage.
 
 I defined priorities as 1 = high, 2 = medium, and 3 = low, with equal priorities keeping their original order. I also updated the UML to show that DailyPlan uses Owner rather than being stored by Owner. All methods remain empty stubs.
+
+I renamed CareTask to Task and DailyPlan to Scheduler to match the implementation requirements. I added frequency and completion status to Task and get_all_tasks() to Owner. Scheduler uses this method to plan tasks across all pets, prioritizes unfinished tasks, and records reasons for skipped tasks.
 ---
 
 ## 2. Scheduling Logic and Tradeoffs
