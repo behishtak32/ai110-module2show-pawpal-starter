@@ -100,3 +100,7 @@ Describe your app in numbered steps so a reader can follow along without watchin
 5. <!-- Add more steps as needed -->
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+PawPal+ creates a daily pet care plan based on the owner's available time and task priorities. Task stores an activity's description, duration, priority, frequency, pet name, and completion status. Pet manages its tasks, and Owner manages multiple pets and combines their tasks through get_all_tasks(). Scheduler uses this combined list to select unfinished tasks that fit the time budget and explain why other tasks were skipped.
+## Implementation Summary
+
+The main.py script demonstrates scheduling across two pets. Two pytest tests verify task completion and task addition.

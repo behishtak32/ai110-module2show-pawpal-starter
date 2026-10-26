@@ -1,15 +1,44 @@
 classDiagram
-    %% Replace the placeholders below with your actual classes, attributes, methods, and relationships.
-    %% Keep this file updated so it matches your final implementation.
-
-    class ClassName {
-        +type attribute
-        +method() returnType
+    class Owner {
+        +String name
+        +int available_minutes
+        +List~Pet~ pets
+        +add_pet(pet)
+        +update_available_time(minutes)
+        +get_all_tasks() List~Task~
     }
 
-    class AnotherClass {
-        +type attribute
-        +method() returnType
+    class Pet {
+        +String name
+        +String species
+        +List~Task~ tasks
+        +add_task(task)
+        +edit_task(description, new_details)
     }
 
-    ClassName --> AnotherClass : relationship
+    class Task {
+        +String description
+        +int duration
+        +int priority
+        +String pet_name
+        +String frequency
+        +bool completed
+        +update_details(description, duration, priority, frequency)
+        +mark_complete()
+    }
+
+    class Scheduler {
+        +List~Task~ selected_tasks
+        +List~Tuple~ skipped_tasks
+        +int total_duration
+        +int available_minutes
+        +generate_plan(owner) List~Task~
+        +explain_choices() String
+    }
+
+    Owner "1" --> "0..*" Pet : has
+    Pet "1" --> "0..*" Task : has
+    Scheduler ..> Owner : uses get_all_tasks()
+    Scheduler "1" --> "0..*" Task : selects
+    note for Scheduler "skipped_tasks holds (Task, reason) tuples"
+    note for Task "priority: 1 = high, 2 = medium, 3 = low; ties keep original order"

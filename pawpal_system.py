@@ -88,11 +88,7 @@ class Pet:
         self.tasks.append(task)
 
     def edit_task(self, description: str, new_details: Dict[str, Any]) -> None:
-        """Find the first task with this description and update it.
-
-        new_details uses the same names as Task.update_details,
-        for example {"duration": 20, "priority": 1}.
-        """
+        """Update the first task with this description using update_details() keyword names."""
         for task in self.tasks:
             if task.description == description:
                 task.update_details(**new_details)
@@ -138,12 +134,7 @@ class Scheduler:
     available_minutes: int = 0
 
     def generate_plan(self, owner: Owner) -> List[Task]:
-        """Pick tasks from the owner's pets by priority to fit their available time.
-
-        Completed tasks are skipped. Tasks are checked from high to low priority;
-        a task that does not fit is skipped and the next task is still checked.
-        Returns the selected tasks.
-        """
+        """Select incomplete tasks by priority that fit the owner's time and return them."""
         # Start fresh so running the plan twice does not repeat tasks.
         self.selected_tasks = []
         self.skipped_tasks = []

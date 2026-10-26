@@ -44,6 +44,12 @@ I renamed CareTask to Task and DailyPlan to Scheduler to match the implementatio
 **a. How you used AI**
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
+
+AI helped me turn my UML into class skeletons, implement the methods, and draft tests. It suggested identifying each task's pet, storing skipped tasks with reasons, remembering the time budget, and defining clear priority rules. I accepted these suggestions because they made scheduling and explanations clearer.
+
+I kept the design simple by passing Owner into Scheduler rather than adding a daily_plan attribute to Owner. I also left frequency as stored information without implementing recurring schedules.
+
+I verified the result by running main.py with two pets and three tasks and checking the selected tasks, skipped task, and time used. I ran python -m pytest, and both tests passed.
 - What kinds of prompts or questions were most helpful?
 
 **b. Judgment and verification**
