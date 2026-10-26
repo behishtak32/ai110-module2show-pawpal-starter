@@ -65,17 +65,24 @@ Skipped tasks:
 ## 🧪 Testing PawPal+
 
 ```bash
-# Run the full test suite:
-pytest
+## Testing PawPal+
 
-# Run with coverage:
-pytest --cov
+Run the tests with:
+
+```bash
+python -m pytest
 ```
 
-Sample test output:
+The tests cover task completion, task addition, sorting, filtering, recurring tasks, duplicate prevention, conflicts, time limits, and empty task lists.
 
+### Test Results
+
+```text
+PASTE YOUR TERMINAL TEST OUTPUT HERE
 ```
-# Paste your pytest output here
+
+### Confidence Level
+All 27 tests pass. Conflict detection checks matching start times but does not detect overlapping durations. The tests do not cover every Streamlit interaction.
 ```
 
 ## 📐 Smarter Scheduling

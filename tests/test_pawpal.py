@@ -163,3 +163,194 @@ def test_same_time_on_different_dates_does_not_conflict():
     )
 
     assert Scheduler().find_conflicts(owner) == []
+
+
+def make_owner_with_two_pets(available_minutes=60):
+    """Return an owner with two empty pets, Rex the dog and Luna the cat."""
+    owner = Owner("Sam", available_minutes)
+    rex, luna = Pet("Rex", "dog"), Pet("Luna", "cat")
+    owner.add_pet(rex)
+    owner.add_pet(luna)
+    return owner, rex, luna
+
+
+# --- Sorting ---
+
+
+def test_sort_by_time_returns_chronological_order():
+    """Tasks come back from earliest to latest start time."""
+    afternoon = Task("Play", 20, 2, "Rex", scheduled_time="14:00")
+    morning = Task("Walk", 30, 1, "Rex", scheduled_time="08:00")
+    midday = Task("Feed", 10, 1, "Rex", scheduled_time="11:30")
+
+    result = Scheduler().sort_by_time([afternoon, morning, midday])
+
+    assert result == [morning, midday, afternoon]
+
+
+def test_sort_by_time_puts_9_00_before_10_00():
+    """A short time like "9:00" is stored as "09:00", so it sorts before "10:00"."""
+    ten = Task("Feed", 10, 1, "Rex", scheduled_time="10:00")
+    nine = Task("Walk", 30, 1, "Rex", scheduled_time="9:00")
+
+    result = Scheduler().sort_by_time([ten, nine])
+
+    assert nine.scheduled_time == "09:00"
+    assert result == [nine, ten]
+
+
+def test_sort_by_time_puts_untimed_tasks_last():
+    """Tasks without a start time go after every timed task."""
+    untimed = Task("Brush", 5, 3, "Rex")
+    late = Task("Play", 20, 2, "Rex", scheduled_time="23:00")
+
+    result = Scheduler().sort_by_time([untimed, late])
+
+    assert result == [late, untimed]
+
+
+def test_sort_by_time_leaves_original_list_unchanged():
+    """Sorting returns a new list instead of reordering the one passed in."""
+    late = Task("Play", 20, 2, "Rex", scheduled_time="14:00")
+    early = Task("Walk", 30, 1, "Rex", scheduled_time="08:00")
+    tasks = [late, early]
+
+    Scheduler().sort_by_time(tasks)
+
+    assert tasks == [late, early]
+
+
+# --- Filtering ---
+
+
+def make_owner_for_filtering():
+    """Return an owner whose pets have a mix of finished and unfinished tasks."""
+    owner, rex, luna = make_owner_with_two_pets()
+    walk = Task("Walk", 30, 1, "Rex", completed=True)
+    feed_rex = Task("Feed", 10, 1, "Rex")
+    feed_luna = Task("Feed", 10, 1, "Luna")
+    rex.add_task(walk)
+    rex.add_task(feed_rex)
+    luna.add_task(feed_luna)
+    return owner, walk, feed_rex, feed_luna
+
+
+def test_filter_by_pet_returns_only_that_pets_tasks():
+    owner, walk, feed_rex, _ = make_owner_for_filtering()
+
+    assert Scheduler().filter_tasks(owner, pet_name="Rex") == [walk, feed_rex]
+
+
+def test_filter_by_completion_status():
+    owner, walk, feed_rex, feed_luna = make_owner_for_filtering()
+    scheduler = Scheduler()
+
+    assert scheduler.filter_tasks(owner, completed=True) == [walk]
+    assert scheduler.filter_tasks(owner, completed=False) == [feed_rex, feed_luna]
+
+
+def test_filter_by_pet_and_status_together():
+    owner, _, feed_rex, _ = make_owner_for_filtering()
+
+    result = Scheduler().filter_tasks(owner, pet_name="Rex", completed=False)
+
+    assert result == [feed_rex]
+
+
+def test_filter_by_unknown_pet_returns_empty_list():
+    owner, _, _, _ = make_owner_for_filtering()
+
+    assert Scheduler().filter_tasks(owner, pet_name="Milo") == []
+
+
+# --- Time budget ---
+
+
+def test_task_that_exactly_fits_is_selected():
+    """A task needing exactly the minutes available is still selected."""
+    owner = Owner("Sam", 30)
+    pet = Pet("Rex", "dog")
+    owner.add_pet(pet)
+    walk = Task("Walk", 30, 1, "Rex")
+    pet.add_task(walk)
+    scheduler = Scheduler()
+
+    scheduler.generate_plan(owner)
+
+    assert scheduler.selected_tasks == [walk]
+    assert scheduler.total_duration == 30
+
+
+def test_oversized_task_is_skipped_but_smaller_task_still_fits():
+    """A task that is too long is skipped, and a later shorter task is still selected."""
+    owner = Owner("Sam", 40)
+    pet = Pet("Rex", "dog")
+    owner.add_pet(pet)
+    grooming = Task("Grooming", 50, 1, "Rex")
+    feed = Task("Feed", 10, 2, "Rex")
+    pet.add_task(grooming)
+    pet.add_task(feed)
+    scheduler = Scheduler()
+
+    scheduler.generate_plan(owner)
+
+    assert scheduler.selected_tasks == [feed]
+    assert scheduler.skipped_tasks == [(grooming, "needs 50 min but only 40 min left")]
+
+
+def test_zero_minutes_selects_nothing():
+    owner = Owner("Sam", 0)
+    pet = Pet("Rex", "dog")
+    owner.add_pet(pet)
+    pet.add_task(Task("Feed", 10, 1, "Rex"))
+    scheduler = Scheduler()
+
+    scheduler.generate_plan(owner)
+
+    assert scheduler.selected_tasks == []
+    assert len(scheduler.skipped_tasks) == 1
+
+
+# --- Empty cases ---
+
+
+def test_owner_with_no_pets_gives_empty_results():
+    owner = Owner("Sam", 60)
+    scheduler = Scheduler()
+
+    assert scheduler.generate_plan(owner) == []
+    assert scheduler.filter_tasks(owner) == []
+    assert scheduler.find_conflicts(owner) == []
+    assert "(none)" in scheduler.explain_choices()
+
+
+def test_pet_with_no_tasks_gives_empty_results():
+    owner = Owner("Sam", 60)
+    owner.add_pet(Pet("Rex", "dog"))
+    scheduler = Scheduler()
+
+    assert scheduler.generate_plan(owner) == []
+    assert scheduler.filter_tasks(owner, pet_name="Rex") == []
+    assert scheduler.find_conflicts(owner) == []
+    assert scheduler.sort_by_time([]) == []
+
+
+# --- Conflicts ---
+
+
+def test_completed_tasks_do_not_conflict():
+    """A finished task at the same time as an unfinished one is not a conflict."""
+    owner, rex, luna = make_owner_with_two_pets()
+    rex.add_task(Task("Walk", 30, 1, "Rex", scheduled_time="08:00", completed=True))
+    luna.add_task(Task("Feed", 10, 1, "Luna", scheduled_time="08:00"))
+
+    assert Scheduler().find_conflicts(owner) == []
+
+
+def test_untimed_tasks_do_not_conflict():
+    """Tasks with no start time are never reported as conflicts."""
+    owner, rex, luna = make_owner_with_two_pets()
+    rex.add_task(Task("Walk", 30, 1, "Rex"))
+    luna.add_task(Task("Feed", 10, 1, "Luna"))
+
+    assert Scheduler().find_conflicts(owner) == []
